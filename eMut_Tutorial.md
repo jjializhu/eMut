@@ -19,7 +19,7 @@ Step3. Functional interpretation: <br />
 
 ### Step1. Mutation detection
 Input: Bam-format files of scATAC-seq data<br>
-As an example, the Monopogen implementation of somatic mutation prediction for a single sample (without matched normal samples), as well as the simultaneous detection of somatic and germline mutations based on GATK Mutect2, are shown here.
+As an example, the [Monopogen](https://github.com/KChen-lab/Monopogen) implementation of somatic mutation prediction for a single sample (without matched normal samples), as well as the simultaneous detection of somatic and germline mutations based on [GATK Mutect2](https://github.com/broadinstitute/gatk), are shown here.
 ```
 /eMut/1.run_GATK.py
 /eMut/2.mutation_annotation.py
@@ -27,6 +27,7 @@ As an example, the Monopogen implementation of somatic mutation prediction for a
 ```
 
 ### Step2. Mutation imputation (optional)
+Considering dropout events due to sparsity of single-cell technical, we refer to [SCAVENGE](https://github.com/sankaranlab/SCAVENGE) with its default parameters to infer potential mutated cells. Briefly, a M-kNN graph was constructed based on scATAC-seq data to represent cell-cell similarity. For a given mutation, the mutated cells (as seed cells) were projected onto the M-kNN graph. Through network propagation of these seed nodes, relevant cells were identified as potential mutated cells.
 Input: 
 (1) mutation profile: mutation-by-cell matrix; <br>
 (2) scATAC-seq data: peak-by-cell matrix or knnGraph; <br>
@@ -38,17 +39,18 @@ library(scales)
 library(ggpubr)
 library(ggplot2)
 library(pbapply)
+library(SCAVENGE)
 source("/eMut/R/function/functions.R")
 
 load("./TileMatrix.Rdata")
 load("./SNVMat.Rdata")
 
-TRS.list<-SNVImputation(countMatrix=NULL,
-                        knnGraph=mutualknn30,
-                        SNVMatrix=mat,
-                        mutations=row.names(mat),
-                        numk=30,
-                        queryCell_cutoff=5,
+TRS.list<-SNVImputation(countMatrix=NULL,            # peak-by-cell matrix
+                        knnGraph=mutualknn30,        # knnGraph 
+                        SNVMatrix=mat,               # mutation-by-cell matrix
+                        mutations=row.names(mat),    # mutations
+                        numk=30,                     # Number of nearest neighbors 
+                        queryCell_cutoff=5,          # Minimum number of mutant cells, greater than this threshold for subsequent analysis
                         ncors=5)
 ```
 
@@ -101,7 +103,7 @@ mut.type$p<-p.adjust(mut.type$p)
 ```
 
 ####  (2) hyperMutated CREs
-Modified activeWGS XXXXXXXXXXXXXXX(method)
+Among all accessible regions, we adapted the [ActiveDriverWGS](https://github.com/reimandlab/ActiveDriverWGSR) method with modification to identify hypermuated CREs based on scATAC-seq data. Specifically, we changed adjacent flanking genomic regions to flanking accessible regions (±500 kbps) for training the model of expected mutations, we identified hypermuated CREs (observed excess expected mutations) in each sample. 
 Input: 
 (1) mutation profile: annotated mutation file(VCf/maf format); <br>
 (2) peak file: The genomic location of chromatin accessible region; <br>
@@ -143,6 +145,7 @@ hyperMut<-ActiveDriverWGS(mutations = mut.df,
 
 ```
 ####  (3) prediction of TF binding motif change
+To explore the impact of mutations in their located enhancer, [motifbreakR](https://github.com/Simon-Coetzee/motifBreakR) was applied to predict TF motif disruptions (loss or gain) for a large number of single-nucleotide variants using several different sources of TF motifs (e.g. JASPAR and ENCODE). In the predicted results, "strong" effect motif change will be considered as the potential impact of mutations.
 Input: 
 (1) mutation profile: mutation file(VCf/maf format); <br>
 
@@ -152,6 +155,7 @@ library(MotifDb)
 library(BSgenome.Hsapiens.UCSC.hg38)
 
 ##   change mutation format
+load("./SNV.Rdata")
 mut<-data.frame(Chromosome=SNV.df$CHROM,Start_Position=SNV.df$POS-1,End_Position=SNV.df$POS,
                 names=gsub(";",":",SNV.df$ID),score=rep(0,nrow(SNV.df)),strand=rep("+",nrow(SNV.df)))
 mut<-mut %>% distinct(names,.keep_all = TRUE)
@@ -175,12 +179,27 @@ SNV.motifs <- motifbreakR(snpList = snps.mb.frombed, filterp = TRUE,
 
 ####  (4) Comparsion of target gene expression between mutated samples(cells) and wild-type
 Input: 
-(1) mutation profile: Combined mutations for all samples (VCf/maf format, ); <br>
-(2) 
-
+(1) mutation profile: Combined mutations for samples (or cells) 
+(2) mutation annotated file: The data needs to contain information about the mutation and its corresponding target gene (nearest neighbor gene or mutation located enhancer linked gene); <br>
+(2) gene expression matrix : gene-by-sample matrix or gene-by cell matrix; <br>
+Since we don't have matching single-cell data for mutated cells, here is an example of transcriptome data for the mutated samples.
 ```r
+load("./SNV.Rdata")  # mutation-sample information
+load("./SNV_anno.Rdata") ## mutation-gene information
+load("./tpm.Rdata")      ## gene-sample information(3 sample replicates per patient)
 
-
+result<-pblapply(1:nrow(SNV.anno),function(x){
+  mut<-SNV.anno[x,1]
+  gene<-SNV.anno$Gene.Name[x]
+  mut.sample<-SNV.df$sample[SNV.df$ID==mut] %>% unique()
+  RNA.sample<-sapply(strsplit(colnames(tpm),split = "_"),function(x){x[[1]]}) %>% unlist()
+  mut.exp<-tpm[gene,RNA.sample %in% mut.sample] %>% t() %>% as.vector()
+  nonMut.exp<-tpm[gene,!RNA.sample %in% mut.sample] %>% t() %>% as.vector()
+  p<-wilcox.test(mut.exp,nonMut.exp)$p.value
+  foldchange<-mean(mut.exp)/mean(nonMut.exp)   
+  data.frame(gene=gene,mutation=mut,mutSamples=paste(mut.sample,collapse = ";"),pValue=p,foldchange=foldchange)
+}) %>% rbindlist()
+result$adjsP<-p.adjust(result$pValue,method="fdr")
 ```
 
 
