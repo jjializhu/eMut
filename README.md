@@ -2,7 +2,7 @@
 ## Introduction
 The eMut, an integrated pipeline for detecting, imputing, and characterizing non-coding mutations in CREs with functional consequences at the single-cell level. 
 
-### Workflow
+## Workflow
 
 Briefly, eMut consists of two main modules: mutation detection and functional interpretation. <br />
 Step1. Mutation detection: eMut detects mutations in each cell by implementing methods such as Monopogen or GATK by single-cell chromatin accessibility data. <br />
@@ -15,3 +15,9 @@ Step3. Functional interpretation: <br />
 <hr>
 
 ![image](https://github.com/jjializhu/eMut/blob/main/Figures/eMut_workflow.png)
+
+## tutorial
+The tutorial can be found at [tutorial](https://github.com/jjializhu/eMut/blob/main/eMut_Tutorial.md)
+
+## Contact
+For any inquiries or assistance, please feel free to open an issue.
