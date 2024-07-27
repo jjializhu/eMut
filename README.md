@@ -16,7 +16,7 @@ Step3. Functional interpretation: <br />
 
 ![image](https://github.com/jjializhu/eMut/blob/main/Figures/eMut_workflow.png)
 
-## tutorial
+## Tutorial
 The tutorial can be found at [tutorial](https://github.com/jjializhu/eMut/blob/main/eMut_Tutorial.md)
 
 ## Contact
