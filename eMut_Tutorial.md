@@ -18,7 +18,8 @@ Step3. Functional interpretation: <br />
 4) compare target gene expression changes between mutated cells (or samples) and wild-type. 
 
 ### Step1. Mutation detection
-Input: Bam-format files of scATAC-seq data<br>
+Input: <br>
+Bam-format files of scATAC-seq data<br>
 As an example, the [Monopogen](https://github.com/KChen-lab/Monopogen) implementation of somatic mutation prediction for a single sample (without matched normal samples), as well as the simultaneous detection of somatic and germline mutations based on [GATK Mutect2](https://github.com/broadinstitute/gatk), are shown here.
 ```
 /eMut/1.run_GATK.py
@@ -28,7 +29,7 @@ As an example, the [Monopogen](https://github.com/KChen-lab/Monopogen) implement
 
 ### Step2. Mutation imputation (optional)
 Considering dropout events due to sparsity of single-cell technical, we refer to [SCAVENGE](https://github.com/sankaranlab/SCAVENGE) with its default parameters to infer potential mutated cells. Briefly, a M-kNN graph was constructed based on scATAC-seq data to represent cell-cell similarity. For a given mutation, the mutated cells (as seed cells) were projected onto the M-kNN graph. Through network propagation of these seed nodes, relevant cells were identified as potential mutated cells.
-Input: 
+Input: <br>
 (1) mutation profile: mutation-by-cell matrix; <br>
 (2) scATAC-seq data: peak-by-cell matrix or knnGraph; <br>
 
@@ -51,12 +52,12 @@ TRS.list<-SNVImputation(countMatrix=NULL,            # peak-by-cell matrix
                         mutations=row.names(mat),    # mutations
                         numk=30,                     # Number of nearest neighbors 
                         queryCell_cutoff=5,          # Minimum number of mutant cells, greater than this threshold for subsequent analysis
-                        ncors=5)
+                        ncors=5)                     # Number of threads
 ```
 
 ### Step3. functional interpertaion
 #### (1) cell type enrichment
-Input: 
+Input: <br>
 (1) mutation profile: mutation-by-cell matrix (raw or imputed); <br>
 (2) scATAC-seq data: ArchR or signac object; <br>
 Here is an example demonstration with an ArchR object .
@@ -71,12 +72,12 @@ cellTypes<-proj$NamedClust
 #####  cell type enrichment for mutation profile (raw)
 ```r
 mut.type<-pblapply(row.names(mat),function(x){
-    mutCells<-colnames(mat)[which(mat[x,]=="0/1" | mat[x,]=="1/1")]
-    result<-cellTypeEnrich(cells,
-                         cellTypes,
-                         mutCells,
-                         mutCells_cutoff=50,
-                         cellType_cutoff=50)
+    mutCells<-colnames(mat)[which(mat[x,]=="0/1" | mat[x,]=="1/1")]  # mutated cells
+    result<-cellTypeEnrich(cells,                  # The names of all cells
+                         cellTypes,                # The cell type
+                         mutCells,                 # Mutated cells
+                         mutCells_cutoff=50,       # Muttaion with a number of mutated cells greater than this threshold were subsequently analyzed
+                         cellType_cutoff=50)       # Cell type with a number of mutated cells greater than this threshold were subsequently analyzed
     if(!is.null(result)){
       result$mut<-rep(x,nrow(result))
       result  
@@ -88,7 +89,7 @@ mut.type$p<-p.adjust(mut.type$p)
 ##### cell type enrichment for mutation profile (imputed)
 ```r
 mut.type<-pblapply(names(TRS.list),function(x){
-    mutCells<-row.names(TRS.list[[x]])[TRS.list[[x]]$true_cell_top_idx==TRUE]
+    mutCells<-row.names(TRS.list[[x]])[TRS.list[[x]]$true_cell_top_idx==TRUE] #imputed mutated cells
     result<-cellTypeEnrich(cells,
                          cellTypes,
                          mutCells,
@@ -104,7 +105,7 @@ mut.type$p<-p.adjust(mut.type$p)
 
 ####  (2) hyperMutated CREs
 Among all accessible regions, we adapted the [ActiveDriverWGS](https://github.com/reimandlab/ActiveDriverWGSR) method with modification to identify hypermuated CREs based on scATAC-seq data. Specifically, we changed adjacent flanking genomic regions to flanking accessible regions (±500 kbps) for training the model of expected mutations, we identified hypermuated CREs (observed excess expected mutations) in each sample. 
-Input: 
+Input: <br>
 (1) mutation profile: annotated mutation file(VCf/maf format); <br>
 (2) peak file: The genomic location of chromatin accessible region; <br>
 
@@ -134,21 +135,21 @@ colnames(peaks.df)<-c("chr","start","end","id")
 openRegions<-GenomicRanges::GRanges(seqnames=peaks.df$chr, 
                                     IRanges::IRanges(peaks.df$start,peaks.df$end))
 ##  identify hypermutated CREs
-hyperMut<-ActiveDriverWGS(mutations = mut.df,
-                         elements = peaks.df,
-                         ref_genome = "hg38",
-                         mc.cores=4,
-                         window_size=1000000,  ### window
-                         detect_depleted_mutations=FALSE,
-                         openRegions = openRegions,
-                         recovery.dir=paste0("./tmp/",x))
+hyperMut<-ActiveDriverWGS(mutations = mut.df,              # mutations
+                         elements = peaks.df,              # Open region as elements 
+                         ref_genome = "hg38",              # Reference genome
+                         mc.cores=4,                       # Number of threads
+                         window_size=1000000,              # The window size of flanking region as background 
+                         detect_depleted_mutations=FALSE,  # The detection of hypomutated region
+                         openRegions = openRegions,        # all open regions
+                         recovery.dir=paste0("./tmp/",x))  # Temporary file paths to quickly recover results
 
 ```
 ####  (3) prediction of TF binding motif change
 To explore the impact of mutations in their located enhancer, [motifbreakR](https://github.com/Simon-Coetzee/motifBreakR) was applied to predict TF motif disruptions (loss or gain) for a large number of single-nucleotide variants using several different sources of TF motifs (e.g. JASPAR and ENCODE). In the predicted results, "strong" effect motif change will be considered as the potential impact of mutations.
-Input: 
+Input: <br>
 (1) mutation profile: mutation file(VCf/maf format); <br>
-
+Function parameters are consistent with otifbreakR
 ```r
 library(motifbreakR)
 library(MotifDb)
@@ -165,7 +166,7 @@ write.table(mut,file="./Monopogen/summary/SNVsForMotifBreakR.bed",sep="\t",
 ##   motif change prediction
 data(motifbreakR_motif)
 ENCODE<-subset (motifbreakR_motif, dataSource=="ENCODE-motif" & organism=="Hsapiens")
-snps.mb.frombed <- snps.from.file(file = "./Monopogen/summary/SNVsForMotifBreakR.bed",
+snps.mb.frombed <- snps.from.file(file = "./Monopogen/summary/SNVsForMotifBreakR.bed", 
                                   search.genome = BSgenome.Hsapiens.UCSC.hg38,
                                   format = "bed")
 
@@ -178,8 +179,8 @@ SNV.motifs <- motifbreakR(snpList = snps.mb.frombed, filterp = TRUE,
 ```
 
 ####  (4) Comparsion of target gene expression between mutated samples(cells) and wild-type
-Input: 
-(1) mutation profile: Combined mutations for samples (or cells) 
+Input: <br>
+(1) mutation profile: Combined mutations for samples (or cells) <br>
 (2) mutation annotated file: The data needs to contain information about the mutation and its corresponding target gene (nearest neighbor gene or mutation located enhancer linked gene); <br>
 (2) gene expression matrix : gene-by-sample matrix or gene-by cell matrix; <br>
 Since we don't have matching single-cell data for mutated cells, here is an example of transcriptome data for the mutated samples.
