@@ -28,10 +28,10 @@ As an example, the [Monopogen](https://github.com/KChen-lab/Monopogen) implement
 ```
 
 ### Step2. Mutation imputation (optional)
-Considering dropout events due to sparsity of single-cell technical, we refer to [SCAVENGE](https://github.com/sankaranlab/SCAVENGE) with its default parameters to infer potential mutated cells. Briefly, a M-kNN graph was constructed based on scATAC-seq data to represent cell-cell similarity. For a given mutation, the mutated cells (as seed cells) were projected onto the M-kNN graph. Through network propagation of these seed nodes, relevant cells were identified as potential mutated cells.
+Considering dropout events due to sparsity of single-cell technical, we refer to [SCAVENGE](https://github.com/sankaranlab/SCAVENGE) with its default parameters to infer potential mutated cells. Briefly, a M-kNN graph was constructed based on scATAC-seq data to represent cell-cell similarity. For a given mutation, the mutated cells (as seed cells) were projected onto the M-kNN graph. Through network propagation of these seed nodes, relevant cells were identified as potential mutated cells.<br>
 Input: <br>
-(1) mutation profile: mutation-by-cell matrix; <br>
-(2) scATAC-seq data: peak-by-cell matrix or knnGraph; <br>
+(1) mutation profile: mutation-by-cell matrix (The matrix can be organized from Monopogen results introduced as step1); <br> 
+(2) scATAC-seq data: peak-by-cell matrix or knnGraph (obatined from ArchR or signac object); <br>
 
 ```r
 library(graphics)
@@ -43,10 +43,10 @@ library(pbapply)
 library(SCAVENGE)
 source("/eMut/R/function/functions.R")
 
-load("./TileMatrix.Rdata")
+load("./mutualknn30.Rdata")
 load("./SNVMat.Rdata")
 
-TRS.list<-SNVImputation(countMatrix=NULL,            # peak-by-cell matrix
+TRS.list<-SNVImputation(countMatrix=NULL,            # peak-by-cell matrix(obatined from ArchR or signac object)
                         knnGraph=mutualknn30,        # knnGraph 
                         SNVMatrix=mat,               # mutation-by-cell matrix
                         mutations=row.names(mat),    # mutations
