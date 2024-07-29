@@ -47,7 +47,7 @@ def run_gatk(bam):
     if not os.path.exists("singlecellvcf"): os.mkdir("singlecellvcf")
     if not os.path.exists("single_filter_vcf"): os.mkdir("single_filter_vcf")
     bed = out_vcf_dir + "/" + args.peaks.split("/")[-1] + ".bed"
-    genome_ref = "/cluster/huanglab/mzhu/reference/hg38.fa"
+    genome_ref = "./reference/hg38.fa"
     output_vcf = "singlecellvcf/" + bam.split("/")[-1].rstrip(".bam") + ".vcf"
     output_flt_vcf = "single_filter_vcf/" + bam.split("/")[-1].rstrip(".bam") + ".filter.vcf"
     sb.run('gatk Mutect2 --java-options "-Xmx16g" -L {} -R {} -I {} -O {}'.format(bed, genome_ref, bam, output_vcf), shell=True)

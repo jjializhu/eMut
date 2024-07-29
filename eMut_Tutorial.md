@@ -2,7 +2,7 @@
 # Tutorial for eMut
 
 ## Introduction
-The eMut, an integrated pipeline for detecting, imputing, and characterizing non-coding mutations in CREs with functional consequences at the single-cell level.
+The eMut, an integrated pipeline for detecting, imputing, and characterizing non-coding mutations in cis-regulatory elements(CREs) with functional consequences at the single-cell level.
 
 ![image](https://github.com/jjializhu/eMut/blob/main/Figures/eMut_workflow.png)
 
@@ -43,8 +43,8 @@ library(pbapply)
 library(SCAVENGE)
 source("/eMut/R/function/functions.R")
 
-load("./mutualknn30.Rdata")
-load("./SNVMat.Rdata")
+load("./mutualknn30.Rdata")      # m-knn graph   (see detials in SCAVENGE)
+load("./SNVMat.Rdata")           # mutation-by-cell matrix from the Step1. Mutation detection 
 
 TRS.list<-SNVImputation(countMatrix=NULL,            # peak-by-cell matrix(obatined from ArchR or signac object)
                         knnGraph=mutualknn30,        # knnGraph 
@@ -65,6 +65,7 @@ Here is an example demonstration with an ArchR object .
 library(ArchR)
 source("/eMut/R/function/functions.R")
 
+load("./SNVMat.Rdata")
 proj<- loadArchRProject(path = "./ArchR", force = FALSE, showLogo = FALSE)
 cells<-row.names(getCellColData(proj))
 cellTypes<-proj$NamedClust
@@ -141,7 +142,7 @@ hyperMut<-ActiveDriverWGS(mutations = mut.df,              # mutations
                          mc.cores=4,                       # Number of threads
                          window_size=1000000,              # The window size of flanking region as background 
                          detect_depleted_mutations=FALSE,  # The detection of hypomutated region
-                         openRegions = openRegions,        # all open regions
+                         openRegions = openRegions,        # all open regions (union of all peaks)
                          recovery.dir=paste0("./tmp/",x))  # Temporary file paths to quickly recover results
 
 ```
@@ -185,8 +186,8 @@ Input: <br>
 (2) gene expression matrix : gene-by-sample matrix or gene-by cell matrix; <br>
 Since we don't have matching single-cell data for mutated cells, here is an example of transcriptome data for the mutated samples.
 ```r
-load("./SNV.Rdata")  # mutation-sample information
-load("./SNV_anno.Rdata") ## mutation-gene information
+load("./SNV.Rdata")  # mutation-sample information(from step1.mutation detection)
+load("./SNV_anno.Rdata") ## mutation-gene information （homer annotation：annotatePeaks.pl SNV.bed hg38 > SNV_anno.txt）
 load("./tpm.Rdata")      ## gene-sample information(3 sample replicates per patient)
 
 result<-pblapply(1:nrow(SNV.anno),function(x){
